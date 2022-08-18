@@ -1,0 +1,100 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1174.vdcb_d054cf74a_">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2075.vce74e77b_ce40"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2075.vce74e77b_ce40">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>ServerIpList</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>JenkinsJob</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>remoteGpudbHome</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>projectDir</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>user</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>password</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>tuser</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>tpwd</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>buildName</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2686.v7c37e0578401">
+    <script>def ip_list = params.ServerIpList.split(',').collect { it.trim() }
+
+def parallelStagesMap = ip_list.collectEntries {
+    ["${it}" : generateStage(it)]
+}
+
+def generateStage(hostIp) {
+    return {
+        stage("Runs on Kinetica ${hostIp}") {
+            build(
+                job: "${params.JenkinsJob}",
+                parameters: [
+                    string(name: 'hostIp', value: "${hostIp}"),
+                    string(name: 'remoteGpudbHome', value: "${params.remoteGpudbHome}"),
+                    string(name: 'projectDir', value: "${params.projectDir}"),
+                    string(name: 'user', value: "${params.user}"),
+                    string(name: 'password', value: "${params.password}"),
+                    string(name: 'tuser', value: "${params.tuser}"),
+                    string(name: 'tpwd', value: "${params.tpwd}"),
+                    string(name: 'buildName', value: "${params.buildName}")
+                ]
+            )
+        }
+    }
+}
+
+pipeline {
+    agent any
+
+    stages {
+        stage('parallel stage') {
+            steps {
+                script {
+                    parallel parallelStagesMap
+                }
+            }
+        }
+    }
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

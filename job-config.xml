@@ -1,0 +1,95 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1174.vdcb_d054cf74a_">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2075.vce74e77b_ce40"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2075.vce74e77b_ce40">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>hostIp</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>remoteGpudbHome</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>projectDir</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>user</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>password</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>tuser</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>tpwd</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>buildName</name>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2686.v7c37e0578401">
+    <script>def remote = [:]
+        remote.name = "Kinetica@${params.hostIp}"
+        remote.host = "${params.hostIp}"
+        remote.user = 'gpudb'
+        remote.password = 'gisfed11'
+        remote.allowAnyHosts = true
+
+        pipeline {
+        agent any
+
+        stages {
+        stage('Test load-export-import-test(Cypress Test)') {
+        when {
+        expression {
+        params.projectDir != params.remoteGpudbHome
+        }
+        }
+
+        steps {
+        script {
+        currentBuild.displayName = "${params.buildName}"
+        }
+        sshCommand remote: remote, command: "rm -rf ${params.projectDir}"
+        sshCommand remote: remote, command: "mkdir -p ${params.projectDir}"
+        sshCommand remote: remote, command: "pushd ${params.projectDir}; git clone git@bitbucket.org:gisfederal/gpudb-qa.git; popd"
+        sshCommand remote: remote, command: "pushd ${params.projectDir}/gpudb-qa/gui_tests/cypress-tests/load-export-import-test; ./bin/test-regression.sh --rat --user ${params.user} --password ${params.password} --tuser ${params.tuser} --tpwd ${params.tpwd}; popd"
+        }
+        }
+
+        stage('Publish test results') {
+        steps {
+        sh 'mkdir -p test_results/'
+        sshGet remote: remote, from: "${params.projectDir}/gpudb-qa/gui_tests/cypress-tests/load-export-import-test/logs", into: "test_results", override: true
+        junit "test_results/logs/*.xml"
+        }
+        }
+        }
+        }</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
